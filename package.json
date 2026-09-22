@@ -1,0 +1,23 @@
+{
+  "name": "@sivletlabs/contracts",
+  "version": "1.0.0",
+  "description": "Production smart contracts for SivletLabs System-1 Decision Network and x402 BuybackBurnEngine on Base L2",
+  "private": false,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:base": "hardhat run scripts/deploy-treasury.js --network base",
+    "deploy:sepolia": "hardhat run scripts/deploy-treasury.js --network baseSepolia",
+    "trigger:keeper": "hardhat run scripts/trigger-buyback.js --network base"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/node": "^26.6.2",
+    "hardhat": "^2.22.0",
+    "solc": "^0.8.37"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1",
+    "viem": "^2.56.8"
+  }
+}

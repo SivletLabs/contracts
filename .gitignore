@@ -1,0 +1,21 @@
+# Hardhat & Foundry Artifacts
+artifacts/
+cache/
+out/
+typechain-types/
+
+# Dependencies
+node_modules/
+bun.lock
+bun.lockb
+package-lock.json
+
+# Environment Secrets
+.env
+.env.local
+*.pem
+private_key.txt
+
+# OS Files
+.DS_Store
+Thumbs.db
