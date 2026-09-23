@@ -13,10 +13,10 @@
 ### 🌐 Official Live Contract Deployments
 
 - **Token Name**: SivletLabs (`$SIVLET`)
-- **Token Contract Address**: [`0xb7832ca55ea7f9aa1504657376117b98deb4e2e1`](https://robinhoodchain.blockscout.com/token/0xb7832ca55ea7f9aa1504657376117b98deb4e2e1)
+- **Token Contract Address**: [`0xb7832Ca55ea7F9aa1504657376117B98deb4e2E1`](https://robinhoodchain.blockscout.com/token/0xb7832Ca55ea7F9aa1504657376117B98deb4e2E1)
 - **Treasury Contract Address (BuybackBurnEngine)**: [`0x6B50f02D2292a28928bCe0F97b654E4DCbC75F8A`](https://robinhoodchain.blockscout.com/address/0x6B50f02D2292a28928bCe0F97b654E4DCbC75F8A)
 - **Token Deployment Transaction**: [`0x6888381f1df994cdc4b9c38eee7b5cafe23d595269255ad92cbc56e5abba91b9`](https://robinhoodchain.blockscout.com/tx/0x6888381f1df994cdc4b9c38eee7b5cafe23d595269255ad92cbc56e5abba91b9)
-- **Launchpad**: [Pons](https://www.ponsfamily.com/launchpad/0xb7832ca55ea7f9aa1504657376117b98deb4e2e1)
+- **Launchpad**: [Pons](https://www.ponsfamily.com/launchpad/0xb7832Ca55ea7F9aa1504657376117B98deb4e2E1)
 - **Network**: Robinhood Chain Mainnet (Chain ID: `4663`)
 - **Total Supply**: 1,000,000,000 $SIVLET (18 decimals, fixed)
 
