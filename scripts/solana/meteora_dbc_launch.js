@@ -50,6 +50,10 @@ const RPC_ENDPOINT = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.sol
 const KEYPAIR_PATH = process.env.SOLANA_KEYPAIR_PATH || path.join(process.env.HOME || '', '.config/solana/id.json');
 const SIVLET_MINT_STR = process.env.SIVLET_TOKEN_MINT || 'Siv1et1111111111111111111111111111111111111';
 
+// Token Branding & Avatar Metadata
+const TOKEN_LOGO_URI = process.env.TOKEN_LOGO_URI || 'https://sivletlabs.github.io/assets/logo.png';
+const TOKEN_METADATA_URI = process.env.TOKEN_METADATA_URI || 'https://sivletlabs.github.io/assets/token-metadata.json';
+
 // Bonding Curve Launchpad Configuration
 const TOTAL_TOKEN_SUPPLY = 1_000_000_000; // 1 Billion $SIVLET tokens
 const MIGRATION_QUOTE_THRESHOLD_SOL = parseFloat(process.env.MIGRATION_THRESHOLD_SOL || '85'); // 85 SOL standard graduation target
@@ -90,6 +94,8 @@ async function main() {
   console.log(`[3/5] Base Token ($SIVLET):     ${sivletMint.toBase58()}`);
   console.log(`      Quote Token (Native SOL): ${NATIVE_SOL_MINT.toBase58()}`);
   console.log(`      DBC Program:              ${DYNAMIC_BONDING_CURVE_PROGRAM_ID.toBase58()}`);
+  console.log(`      Token Avatar / Logo:      ${TOKEN_LOGO_URI}`);
+  console.log(`      Token Metadata URI:       ${TOKEN_METADATA_URI}`);
 
   console.log('\n[4/5] Building Mathematical Dynamic Bonding Curve:');
   console.log(`      - Total Supply:               ${TOTAL_TOKEN_SUPPLY.toLocaleString()} SIVLET`);
@@ -168,7 +174,9 @@ async function main() {
       symbol: 'SIVLET',
       decimals: 9,
       total_supply: TOTAL_TOKEN_SUPPLY,
-      mint: sivletMint.toBase58()
+      mint: sivletMint.toBase58(),
+      logo_url: TOKEN_LOGO_URI,
+      metadata_uri: TOKEN_METADATA_URI
     },
     bonding_curve_parameters: {
       base_fee_bps: BASE_FEE_BPS,
@@ -196,7 +204,11 @@ async function main() {
   console.log('METHOD 1: WEB PORTAL (1-Click Fair Launch - Recommended)');
   console.log('  1. Navigate to: https://launch.meteora.ag');
   console.log('  2. Connect Phantom or Solflare wallet.');
-  console.log('  3. Upload Logo, enter Token Name (SivletLabs Token) and Symbol (SIVLET).');
+  console.log('  3. Token Profile & Avatar:');
+  console.log('     - Token Name:   SivletLabs Token');
+  console.log('     - Symbol:       SIVLET');
+  console.log(`     - Avatar/Logo:  ${TOKEN_LOGO_URI}`);
+  console.log(`     - Metadata URI: ${TOKEN_METADATA_URI}`);
   console.log(`  4. Set Migration Threshold to ${MIGRATION_QUOTE_THRESHOLD_SOL} SOL.`);
   console.log('  5. Set Fee tier to Maximum (10.0%) and Creator Fee Share to 100%.');
   console.log('  6. Confirm transaction. Zero initial SOL liquidity required!');
