@@ -9,7 +9,8 @@
     "meteora:setup": "node ./meteora_dlmm_setup.js",
     "buyback:bot": "node ./jupiter_buyback_bot.js",
     "crank:instant": "node ./instant_buyback_burn_crank.js",
-    "launch:dbc": "node ./meteora_dbc_launch.js"
+    "launch:dbc": "node ./meteora_dbc_launch.js",
+    "scan:deploy": "node ./scan_to_sign_deploy.js"
   },
   "keywords": [
     "solana",
@@ -31,6 +32,8 @@
     "@solana/web3.js": "^1.98.0",
     "bn.js": "^5.2.1",
     "bs58": "^6.0.0",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0"
   }
 }
