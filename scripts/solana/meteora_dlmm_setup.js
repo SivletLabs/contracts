@@ -35,7 +35,7 @@ const SPL_USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1
 // Configuration
 const RPC_ENDPOINT = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 const KEYPAIR_PATH = process.env.SOLANA_KEYPAIR_PATH || path.join(process.env.HOME || '', '.config/solana/id.json');
-const SIVLET_MINT_STR = process.env.SIVLET_TOKEN_MINT || 'Siv1et1111111111111111111111111111111111111';
+const SIVLET_MINT_STR = process.env.SIVLET_TOKEN_MINT || '8XtGPfLuzutqEKRtAtwn9YN9JJhsyKzngqbC3rsyeNos';
 
 // MAXIMUM DLMM Fee Tier Parameters
 const BIN_STEP = 100; // 1% bin step

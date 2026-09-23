@@ -43,8 +43,8 @@ const JUPITER_SWAP_API = 'https://quote-api.jup.ag/v6/swap';
 // Configuration
 const RPC_ENDPOINT = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 const KEYPAIR_PATH = process.env.SOLANA_KEYPAIR_PATH || path.join(process.env.HOME || '', '.config/solana/id.json');
-const SIVLET_MINT_STR = process.env.SIVLET_TOKEN_MINT || 'S1VLET1111111111111111111111111111111111111';
-const CREATOR_PROFIT_WALLET_STR = process.env.CREATOR_PROFIT_WALLET || '';
+const SIVLET_MINT_STR = process.env.SIVLET_TOKEN_MINT || '8XtGPfLuzutqEKRtAtwn9YN9JJhsyKzngqbC3rsyeNos';
+const CREATOR_PROFIT_WALLET_STR = process.env.CREATOR_PROFIT_WALLET || '8XiwKV2K4TV8kN8ihUuZk4jZ7kAi5eHRFveU6wEcxsj3';
 const CREATOR_PROFIT_SHARE = 0.10; // 10% Creator Profit Cash Flow
 const BUYBACK_BURN_SHARE = 0.90;   // 90% Buyback and Permanent Burn
 const MIN_BUYBACK_USDC = parseFloat(process.env.MIN_BUYBACK_USDC || '50.0'); // Minimum 50 USDC to trigger distribution
