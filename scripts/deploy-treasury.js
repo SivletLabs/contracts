@@ -4,9 +4,9 @@ async function main() {
   const signers = await hre.ethers.getSigners();
   if (!signers || signers.length === 0) {
     console.error("=================================================");
-    console.error("❌ 错误：未检测到部署钱包私钥！");
-    console.error("👉 请在 /Users/echo/project/SivletLabs/contracts/.env 文件中设置：");
-    console.error("   PRIVATE_KEY=\"你的钱包私钥\"");
+    console.error("❌ ERROR: Deployer private key not found!");
+    console.error("👉 Please configure PRIVATE_KEY in /Users/echo/project/SivletLabs/contracts/.env");
+    console.error("   Example: PRIVATE_KEY=\"your_wallet_private_key_here\"");
     console.error("=================================================");
     process.exit(1);
   }
