@@ -39,10 +39,14 @@ interface ISwapRouter {
 }
 
 /**
- * @title BuybackBurnEngine (SivletLabs Protocol Treasury on Base L2)
- * @notice Receives x402 USDC micropayments and executes permissionless,
- *         TWAP-protected market buybacks of $JEV / $SIVLET on Base Uniswap v3.
+ * @title BuybackBurnEngine (SivletLabs Protocol Treasury)
+ * @notice Receives x402 API micropayments (USDC or Native ETH) and executes
+ *         permissionless buybacks and permanent burns of $SIVLET.
  *         
+ * Architecture & Lifecycle:
+ *  - Stage 1 (Pons Fair Launch): Native ETH buybacks routed into Pons bonding pool.
+ *  - Stage 2 (Uniswap v3 / v4 Graduation): Router-configurable TWAP market swaps.
+ *  
  * Manifesto: "The Sivlet Team Works for the Treasury"
  *  - Zero pre-mined team dumps. The team is employed by the autonomous protocol treasury.
  *  - 100% of x402 API revenue streams into the treasury contract.
@@ -51,31 +55,30 @@ interface ISwapRouter {
  *  - Startup-Style Perpetual Cliff Vesting Model:
  *      1. Master Milestone Cliff ($100K FDV): 100% locked until market cap reaches $100,000 USD.
  *      2. Monthly Cliff Cycles: Passing $100K activates the vesting clock (30-day epoch cliffs).
- *      3. Perpetual Longevity: Continues into infinity as new revenue feeds the treasury, ensuring
- *         contributors are forever incentivized to grow protocol revenue.
+ *      3. Perpetual Longevity: Continues into infinity as new revenue feeds the treasury.
  * 
  * Security Features:
  *  - Checks-Effects-Interactions (CEI) pattern + ReentrancyGuard
- *  - Multi-hop Uniswap v3 swap route (USDC -> WETH -> $JEV)
- *  - Strict Rug-Pull Prevention: Zero admin withdrawals for USDC protocol revenue or SIVLET tokens
+ *  - Strict Rug-Pull Prevention: Zero admin withdrawals for protocol revenue or SIVLET tokens
  *  - Automated Keeper Bounty (0.5%) to incentivize decentralized calling
  *  - Cooldown & Minimum Balance constraints to prevent high-frequency sandwich attacks
  */
 contract BuybackBurnEngine {
     address public constant DEAD_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
-    // Base Mainnet Constants:
-    // USDC: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (6 decimals)
-    // WETH: 0x4200000000000000000000000000000000000006 (18 decimals)
-    // Uniswap v3 SwapRouter02: 0x2626664c2603336E57B271c5C0b26F421741e481
-    IERC20 public immutable usdc;
-    address public immutable weth;
-    ISwapRouter public immutable swapRouter;
+    // Protocol Token & Payment Assets
+    IERC20 public usdc;
+    address public weth;
+    ISwapRouter public swapRouter;
 
-    // Address of the $JEV / $SIVLET token
+    // Robinhood Chain Pons Integration
+    address public ponsPool;
+    address public ponsRouter;
+
+    // Address of the $SIVLET token
     address public sivletToken;
 
-    // Encoded Uniswap v3 swap path (e.g. USDC -[500]-> WETH -[10000]-> $JEV)
+    // Encoded swap path (e.g. USDC -> WETH -> SIVLET)
     bytes public swapPath;
 
     // Contract administrator
@@ -88,11 +91,12 @@ contract BuybackBurnEngine {
     uint256 private _reentrancyStatus;
 
     // Execution parameters
-    uint256 public minTriggerThreshold; // e.g. 50 * 10^6 (50 USDC)
+    uint256 public minTriggerThreshold;     // e.g. 50 * 10^6 (50 USDC)
+    uint256 public minTriggerThresholdEth;  // e.g. 0.005 ether
     uint256 public cooldownInterval = 1 hours;
     uint256 public lastExecutionTimestamp;
 
-    // Keeper incentive: 0.5% in basis points (50 bps) paid in USDC to keeper
+    // Keeper incentive: 0.5% in basis points (50 bps) paid to caller
     uint256 public constant CALLER_BOUNTY_BPS = 50; 
     uint256 public constant BPS_DENOMINATOR = 10000;
 
@@ -102,14 +106,15 @@ contract BuybackBurnEngine {
     // Master Milestone Unlock: $100,000 USD Market Cap (in USDC 6 decimals)
     uint256 public targetMarketCap = 100_000 * 1e6;
     bool public isMarketCapGoalReached;
-    uint256 public cliffActivationTimestamp; // Timestamp when 100K milestone activated the vesting clock
+    uint256 public cliffActivationTimestamp;
 
     // Periodic Cliff Parameters (Startup-style monthly cliff vesting)
-    uint256 public constant CLIFF_PERIOD = 30 days; // 30-day epoch cycle
-    uint256 public vestingDurationMonths = 12;      // 12-month post-cliff vesting schedule
+    uint256 public constant CLIFF_PERIOD = 30 days;
+    uint256 public vestingDurationMonths = 12;
 
     // Cumulative transparent protocol metrics
     uint256 public totalUsdcSpent;
+    uint256 public totalEthSpent;
     uint256 public totalTokensBurned;
     uint256 public totalBurnEvents;
 
@@ -120,7 +125,7 @@ contract BuybackBurnEngine {
     // Events
     event TokensBurned(
         uint256 indexed burnId,
-        uint256 usdcSpent,
+        uint256 fundsSpent,
         uint256 tokensDestroyed,
         uint256 founderIncentiveLocked,
         address indexed caller,
@@ -134,8 +139,11 @@ contract BuybackBurnEngine {
     );
 
     event CallerBountyPaid(address indexed caller, uint256 bountyAmount);
+    event CallerBountyPaidEth(address indexed caller, uint256 bountyAmount);
     event SivletTokenConfigured(address indexed token, bytes path);
-    event ParametersUpdated(uint256 minThreshold, uint256 cooldown);
+    event RouterConfigured(address indexed newRouter);
+    event PonsPoolConfigured(address indexed newPool, address indexed newRouter);
+    event ParametersUpdated(uint256 minThresholdUsdc, uint256 minThresholdEth, uint256 cooldown);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event EmergencyRescued(address indexed token, address indexed to, uint256 amount);
 
@@ -171,17 +179,28 @@ contract BuybackBurnEngine {
         weth = _weth;
         swapRouter = ISwapRouter(_swapRouter);
         minTriggerThreshold = _minTriggerThreshold > 0 ? _minTriggerThreshold : 50 * 1e6; // default 50 USDC
+        minTriggerThresholdEth = 0.005 ether; // default 0.005 ETH
         _reentrancyStatus = 1;
 
+        // Default Robinhood Chain Pons pool if known
+        ponsPool = 0x5F02BE04d20aB66cf5Ea33ECda25194AECAd5601;
+        ponsRouter = 0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e;
+
         if (_sivletToken != address(0)) {
-            _configureSivletRoute(_sivletToken, 10000); // Default Clanker 1% fee
+            _configureSivletRoute(_sivletToken, 10000); // Default 1% pool fee
         }
     }
 
     /**
+     * @notice Allows contract to receive native ETH from x402 micropayments or direct contributors
+     */
+    receive() external payable {}
+    fallback() external payable {}
+
+    /**
      * @notice Configure or update the token address and swap path
-     * @param _token The deployed $JEV / $SIVLET contract address
-     * @param _tokenFee Uniswap pool fee tier (e.g. 10000 for 1% Clanker standard, or 3000 for 0.3%)
+     * @param _token The deployed $SIVLET contract address
+     * @param _tokenFee Uniswap pool fee tier (e.g. 10000 for 1%, or 3000 for 0.3%)
      */
     function configureSivletToken(address _token, uint24 _tokenFee) external onlyOwner {
         require(_token != address(0), "Invalid token address");
@@ -189,16 +208,34 @@ contract BuybackBurnEngine {
     }
 
     /**
-     * @notice Set custom swap path (e.g. if a direct USDC/JEV pool is formed)
+     * @notice Set custom swap path (e.g. for Uniswap v3 / v4 multi-hop routing)
      */
     function setCustomSwapPath(bytes calldata _path) external onlyOwner {
         require(_path.length > 0, "Invalid path");
         swapPath = _path;
     }
 
+    /**
+     * @notice Update swap router address (e.g. upon graduating to Uniswap v4)
+     */
+    function setSwapRouter(address _newRouter) external onlyOwner {
+        require(_newRouter != address(0), "Invalid router address");
+        swapRouter = ISwapRouter(_newRouter);
+        emit RouterConfigured(_newRouter);
+    }
+
+    /**
+     * @notice Update Pons bonding pool or launchpad router addresses
+     */
+    function setPonsAddresses(address _newPool, address _newRouter) external onlyOwner {
+        ponsPool = _newPool;
+        ponsRouter = _newRouter;
+        emit PonsPoolConfigured(_newPool, _newRouter);
+    }
+
     function _configureSivletRoute(address _token, uint24 _tokenFee) internal {
         sivletToken = _token;
-        // Default multi-hop route: USDC -> (500 fee = 0.05%) -> WETH -> (_tokenFee = 1%) -> Token
+        // Construct multi-hop path: USDC -> WETH (500 = 0.05%) -> SIVLET (_tokenFee)
         swapPath = abi.encodePacked(
             address(usdc),
             uint24(500),
@@ -210,19 +247,17 @@ contract BuybackBurnEngine {
     }
 
     /**
-     * @notice Permissionless buyback and burn trigger.
-     *         Anyone or any decentralized keeper can call this when criteria are met.
-     * @param minAmountOut Minimum tokens expected from swap (slippage protection).
+     * @notice Execute buyback using accumulated USDC via Uniswap router
+     * @param minAmountOut Slippage protection threshold
      */
     function executeBuybackAndBurn(uint256 minAmountOut) external nonReentrant returns (uint256 tokensBought) {
-        require(sivletToken != address(0), "Token not configured");
-        require(swapPath.length > 0, "Swap path not set");
+        require(sivletToken != address(0), "SIVLET token not configured");
+        require(swapPath.length > 0, "Swap path not configured");
 
         uint256 usdcBalance = usdc.balanceOf(address(this));
         require(usdcBalance >= minTriggerThreshold, "Insufficient treasury balance");
         require(block.timestamp >= lastExecutionTimestamp + cooldownInterval, "Cooldown active");
 
-        // Follow Checks-Effects-Interactions (CEI)
         lastExecutionTimestamp = block.timestamp;
 
         // 1. Calculate keeper incentive (0.5%)
@@ -242,7 +277,7 @@ contract BuybackBurnEngine {
         // 3. Execute exactInput multi-hop swap: USDC -> WETH -> SIVLET -> address(this)
         ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
             path: swapPath,
-            recipient: address(this), // Contract receives tokens to split burn (99%) and founder lock (1%)
+            recipient: address(this),
             amountIn: swapAmount,
             amountOutMinimum: minAmountOut
         });
@@ -250,7 +285,68 @@ contract BuybackBurnEngine {
         tokensBought = swapRouter.exactInput(params);
         require(tokensBought > 0, "Zero tokens bought");
 
-        // 4. Split: 1% Founder Equity Incentive locked, 99% burned to DEAD_ADDRESS
+        // 4. Distribute: 1% Founder Equity Incentive locked, 99% burned to DEAD_ADDRESS
+        _distributeBoughtTokens(tokensBought, swapAmount);
+
+        // 5. Update cumulative USDC statistics
+        totalUsdcSpent += swapAmount;
+
+        return tokensBought;
+    }
+
+    /**
+     * @notice Execute native ETH buyback via Pons Bonding Pool or custom DEX router
+     * @dev Designed for Robinhood Chain native ETH micro-settlements
+     * @param minTokensOut Minimum tokens expected from swap
+     */
+    function executeBuybackEth(
+        address targetDEX,
+        bytes calldata callData,
+        uint256 minTokensOut
+    ) external nonReentrant returns (uint256 tokensBought) {
+        require(sivletToken != address(0), "SIVLET token not configured");
+        require(targetDEX != address(0), "Invalid DEX target");
+        require(targetDEX != sivletToken && targetDEX != address(usdc), "Target cannot be token");
+
+        uint256 ethBalance = address(this).balance;
+        require(ethBalance >= minTriggerThresholdEth, "Insufficient ETH balance");
+        require(block.timestamp >= lastExecutionTimestamp + cooldownInterval, "Cooldown active");
+
+        lastExecutionTimestamp = block.timestamp;
+
+        // 1. Keeper bounty in ETH (0.5%)
+        uint256 callerBounty = (ethBalance * CALLER_BOUNTY_BPS) / BPS_DENOMINATOR;
+        uint256 swapAmount = ethBalance - callerBounty;
+
+        if (callerBounty > 0) {
+            (bool bountySuccess, ) = payable(msg.sender).call{value: callerBounty}("");
+            require(bountySuccess, "ETH bounty transfer failed");
+            emit CallerBountyPaidEth(msg.sender, callerBounty);
+        }
+
+        // 2. Measure balance before swap
+        uint256 balanceBefore = IERC20(sivletToken).balanceOf(address(this));
+
+        // 3. Execute swap with native ETH
+        (bool swapSuccess, ) = targetDEX.call{value: swapAmount}(callData);
+        require(swapSuccess, "DEX swap call failed");
+
+        // 4. Measure tokens received
+        uint256 balanceAfter = IERC20(sivletToken).balanceOf(address(this));
+        require(balanceAfter > balanceBefore, "No tokens received from swap");
+        tokensBought = balanceAfter - balanceBefore;
+        require(tokensBought >= minTokensOut, "Slippage limit exceeded");
+
+        // 5. Distribute: 99% burn, 1% founder lock
+        _distributeBoughtTokens(tokensBought, swapAmount);
+
+        // 6. Update cumulative statistics
+        totalEthSpent += swapAmount;
+
+        return tokensBought;
+    }
+
+    function _distributeBoughtTokens(uint256 tokensBought, uint256 fundsSpent) internal {
         uint256 founderIncentive = (tokensBought * FOUNDER_INCENTIVE_BPS) / BPS_DENOMINATOR;
         uint256 tokensToBurn = tokensBought - founderIncentive;
 
@@ -259,11 +355,10 @@ contract BuybackBurnEngine {
         bool burnSuccess = IERC20(sivletToken).transfer(DEAD_ADDRESS, tokensToBurn);
         require(burnSuccess, "Burn transfer failed");
 
-        // 5. Check if market swap implies Market Cap ($100k FDV) master milestone is reached
+        // Milestone calculation
         uint256 tokenSupply = IERC20(sivletToken).totalSupply();
         if (!isMarketCapGoalReached && tokenSupply > 0) {
-            // Implied Market Cap in USDC (6 decimals) = (swapAmount * tokenSupply) / tokensBought
-            uint256 impliedMarketCap = (swapAmount * tokenSupply) / tokensBought;
+            uint256 impliedMarketCap = (fundsSpent * tokenSupply) / tokensBought;
             if (impliedMarketCap >= targetMarketCap) {
                 isMarketCapGoalReached = true;
                 cliffActivationTimestamp = block.timestamp;
@@ -271,21 +366,17 @@ contract BuybackBurnEngine {
             }
         }
 
-        // 6. Update cumulative statistics
-        totalUsdcSpent += swapAmount;
         totalTokensBurned += tokensToBurn;
         totalBurnEvents++;
 
         emit TokensBurned(
             totalBurnEvents,
-            swapAmount,
+            fundsSpent,
             tokensToBurn,
             founderIncentive,
             msg.sender,
             block.timestamp
         );
-
-        return tokensBought;
     }
 
     /**
@@ -300,8 +391,6 @@ contract BuybackBurnEngine {
 
     /**
      * @notice Calculate currently claimable founder incentive tokens based on monthly cliff schedule
-     * @dev Before 100K FDV: returns 0.
-     *      After 100K FDV: unlocks in 30-day epoch cliffs according to vestingDurationMonths.
      */
     function getClaimableFounderTokens() public view returns (uint256) {
         if (!isMarketCapGoalReached || cliffActivationTimestamp == 0) {
@@ -309,7 +398,6 @@ contract BuybackBurnEngine {
         }
 
         uint256 elapsedPeriods = (block.timestamp - cliffActivationTimestamp) / CLIFF_PERIOD;
-        // Month 0 (immediate upon reaching 100K cliff milestone): 1 tranche vested
         uint256 effectivePeriods = elapsedPeriods + 1;
 
         uint256 totalVested;
@@ -328,7 +416,6 @@ contract BuybackBurnEngine {
 
     /**
      * @notice Claim vested founder equity incentive tokens
-     * @dev Only claimable once the $100K FDV cliff is unlocked, vested via 30-day periodic cliffs
      */
     function claimFounderIncentive() external nonReentrant {
         address recipient = founderAddress != address(0) ? founderAddress : owner;
@@ -347,8 +434,7 @@ contract BuybackBurnEngine {
     }
 
     /**
-     * @notice Direct burn for users who pay in $JEV / $SIVLET directly (Burn-on-use utility)
-     * @param amount Amount of tokens to burn from caller's wallet
+     * @notice Direct burn for users who pay in $SIVLET directly (Burn-on-use utility)
      */
     function burnDirect(uint256 amount) external nonReentrant {
         require(amount > 0, "Zero amount");
@@ -407,7 +493,15 @@ contract BuybackBurnEngine {
     function updateParameters(uint256 _minThreshold, uint256 _cooldown) external onlyOwner {
         minTriggerThreshold = _minThreshold;
         cooldownInterval = _cooldown;
-        emit ParametersUpdated(_minThreshold, _cooldown);
+        emit ParametersUpdated(_minThreshold, minTriggerThresholdEth, _cooldown);
+    }
+
+    /**
+     * @notice Update ETH execution threshold
+     */
+    function updateEthThreshold(uint256 _minThresholdEth) external onlyOwner {
+        minTriggerThresholdEth = _minThresholdEth;
+        emit ParametersUpdated(minTriggerThreshold, _minThresholdEth, cooldownInterval);
     }
 
     /**
@@ -468,8 +562,8 @@ contract BuybackBurnEngine {
         uint256 currentFounderPoolBalance,
         bool isFounderGoalReached
     ) {
-        currentUsdcBalance = usdc.balanceOf(address(this));
-        bool balanceReady = currentUsdcBalance >= minTriggerThreshold;
+        currentUsdcBalance = address(usdc) != address(0) ? usdc.balanceOf(address(this)) : 0;
+        bool balanceReady = currentUsdcBalance >= minTriggerThreshold || address(this).balance >= minTriggerThresholdEth;
         bool timeReady = block.timestamp >= lastExecutionTimestamp + cooldownInterval;
         
         isReadyToTrigger = (sivletToken != address(0)) && balanceReady && timeReady;

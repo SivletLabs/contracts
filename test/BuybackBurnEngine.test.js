@@ -288,4 +288,35 @@ describe("BuybackBurnEngine Treasury Unit Tests (Startup Monthly Cliff Model)", 
     expect(treasuryStatus.currentUsdcBalance).to.equal(0);
     expect(treasuryStatus.isReadyToTrigger).to.equal(false);
   });
+
+  it("should support receiving native ETH and updating router / Pons configurations", async function () {
+    // 1. Send native ETH to treasury
+    const ethAmount = hre.ethers.parseEther("0.1");
+    await user.sendTransaction({
+      to: await treasury.getAddress(),
+      value: ethAmount
+    });
+
+    const treasuryBal = await hre.ethers.provider.getBalance(await treasury.getAddress());
+    expect(treasuryBal).to.equal(ethAmount);
+
+    // 2. Status readiness with ETH balance
+    const status = await treasury.getTreasuryStatus();
+    expect(status.isReadyToTrigger).to.equal(true);
+
+    // 3. Update router address
+    const dummyRouter = user.address;
+    await treasury.connect(owner).setSwapRouter(dummyRouter);
+    expect(await treasury.swapRouter()).to.equal(dummyRouter);
+
+    // 4. Update Pons pool & router addresses
+    await treasury.connect(owner).setPonsAddresses(dummyRouter, keeper.address);
+    expect(await treasury.ponsPool()).to.equal(dummyRouter);
+    expect(await treasury.ponsRouter()).to.equal(keeper.address);
+
+    // 5. Update ETH threshold
+    await treasury.connect(owner).updateEthThreshold(hre.ethers.parseEther("0.01"));
+    expect(await treasury.minTriggerThresholdEth()).to.equal(hre.ethers.parseEther("0.01"));
+  });
 });
+
