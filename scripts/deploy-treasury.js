@@ -1,7 +1,17 @@
-import hre from "hardhat";
+const hre = require("hardhat");
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const signers = await hre.ethers.getSigners();
+  if (!signers || signers.length === 0) {
+    console.error("=================================================");
+    console.error("❌ 错误：未检测到部署钱包私钥！");
+    console.error("👉 请在 /Users/echo/project/SivletLabs/contracts/.env 文件中设置：");
+    console.error("   PRIVATE_KEY=\"你的钱包私钥\"");
+    console.error("=================================================");
+    process.exit(1);
+  }
+
+  const [deployer] = signers;
   const networkName = hre.network.name;
   const chainId = (await hre.ethers.provider.getNetwork()).chainId;
 

@@ -1,4 +1,18 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
+
+// Bypass local proxy for Robinhood Chain RPC to avoid TLS connection reset
+if (process.env.HTTP_PROXY || process.env.http_proxy) {
+  process.env.NO_PROXY = `${process.env.NO_PROXY || ""},.robinhood.com,rpc.mainnet.chain.robinhood.com,4663`;
+  process.env.no_proxy = process.env.NO_PROXY;
+}
+
+function getAccounts() {
+  const pk = process.env.PRIVATE_KEY;
+  if (!pk || pk === "your_private_key_here" || pk === "your-private-key-without-0x") return [];
+  const cleanPk = pk.trim();
+  return [cleanPk.startsWith("0x") ? cleanPk : `0x${cleanPk}`];
+}
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -21,16 +35,16 @@ module.exports = {
     hardhat: {},
     base: {
       url: process.env.BASE_RPC_URL || "https://mainnet.base.org",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+      accounts: getAccounts()
     },
     baseSepolia: {
       url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+      accounts: getAccounts()
     },
     robinhood: {
       url: process.env.ROBINHOOD_RPC_URL || "https://rpc.mainnet.chain.robinhood.com",
       chainId: 4663,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+      accounts: getAccounts()
     }
   },
   etherscan: {
@@ -51,4 +65,3 @@ module.exports = {
     ]
   }
 };
-
