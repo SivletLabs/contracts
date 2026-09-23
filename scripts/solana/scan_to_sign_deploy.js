@@ -216,20 +216,30 @@ async function main() {
 
     console.log(`[2/4] Solana Pay Bridge Server listening on port ${PORT}`);
     console.log(`      Endpoint: http://${localIp}:${PORT}/api/solana-pay`);
-    console.log('\n[3/4] SCAN WITH PHANTOM OR SOLFLARE MOBILE APP:');
-    console.log('      Open Phantom -> Tap QR Scanner (Top Right) -> Scan below:\n');
+    console.log('\n[3/4] SCAN TO SIGN WITH YOUR MOBILE WALLET:');
+    console.log('----------------------------------------------------------------');
+    console.log('  OPTION A: OKX WALLET APP (RECOMMENDED):');
+    console.log('  Open OKX App -> Tap Scan icon (top right) -> Scan QR code below:');
+    console.log('  (Opens directly in OKX Web3 Browser with auto-connection)\n');
+
+    qrcodeTerminal.generate(webBrowserUrl, { small: true }, (qr) => {
+      console.log(qr);
+    });
+    console.log(`  OKX Web3 Launch URL: ${webBrowserUrl}\n`);
+
+    console.log('----------------------------------------------------------------');
+    console.log('  OPTION B: PHANTOM / SOLFLARE (SOLANA PAY):');
+    console.log('  Open Phantom or Solflare -> Tap QR Scanner -> Scan below:\n');
 
     qrcodeTerminal.generate(solanaPayUri, { small: true }, (qr) => {
       console.log(qr);
     });
-
-    console.log(`      Solana Pay URI: ${solanaPayUri}\n`);
+    console.log(`  Solana Pay URI: ${solanaPayUri}\n`);
 
     console.log('----------------------------------------------------------------');
-    console.log('[4/4] PREFER DESKTOP BROWSER EXTENSION?');
-    console.log('      If you have Phantom or Solflare browser extension installed:');
+    console.log('[4/4] DESKTOP EXTENSION (OKX / PHANTOM / SOLFLARE):');
     console.log(`      Open Web Launchpad: ${webBrowserUrl}`);
-    console.log('      (Connect wallet and click "Deploy $SIVLET" directly in browser)');
+    console.log('      (Connect wallet and click "Sign & Deploy $SIVLET")');
     console.log('================================================================\n');
     console.log('[*] Waiting for wallet scan & signature... (Press Ctrl+C to stop)');
   });
