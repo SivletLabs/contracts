@@ -7,7 +7,8 @@
   "scripts": {
     "token:create": "bash ./create_spl_token.sh",
     "meteora:setup": "node ./meteora_dlmm_setup.js",
-    "buyback:bot": "node ./jupiter_buyback_bot.js"
+    "buyback:bot": "node ./jupiter_buyback_bot.js",
+    "crank:instant": "node ./instant_buyback_burn_crank.js"
   },
   "keywords": [
     "solana",

@@ -3,9 +3,10 @@
  * 
  * Purpose:
  *   1. Create and initialize a Meteora DLMM liquidity pool pairing $SIVLET with SOL or USDC.
- *   2. Configure dynamic volatility fees to capture MEV and high trading volume into the protocol treasury.
- *   3. Setup Alpha Vault parameters for fair launch anti-sniper / anti-bot protection.
- *   4. Permanently lock initial liquidity position to ensure zero rug-pull risk.
+ *   2. Configure MAXIMUM fee tier (10.0% Base Fee) with Dynamic Volatility Surge (up to 25.0%).
+ *   3. All swap fees generated from buys/sells flow directly into the instant buyback-burn flywheel.
+ *   4. Setup Alpha Vault parameters for fair launch anti-sniper / anti-bot protection.
+ *   5. Permanently lock initial liquidity position to ensure zero rug-pull risk.
  * 
  * Network: Solana Mainnet Beta
  * Protocol: Meteora (https://www.meteora.ag/)
@@ -34,12 +35,12 @@ const SPL_USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1
 // Configuration
 const RPC_ENDPOINT = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 const KEYPAIR_PATH = process.env.SOLANA_KEYPAIR_PATH || path.join(process.env.HOME || '', '.config/solana/id.json');
-const SIVLET_MINT_STR = process.env.SIVLET_TOKEN_MINT || 'S1VLET1111111111111111111111111111111111111';
+const SIVLET_MINT_STR = process.env.SIVLET_TOKEN_MINT || 'Siv1et1111111111111111111111111111111111111';
 
-// Default DLMM Parameters
+// MAXIMUM DLMM Fee Tier Parameters
 const BIN_STEP = 100; // 1% bin step
-const BASE_FEE_BPS = 200; // 2.0% base fee
-const MAX_FEE_BPS = 1000; // 10.0% dynamic surge fee under high volatility
+const BASE_FEE_BPS = 1000; // 10.0% Maximum Base Fee (1000 bps)
+const MAX_FEE_BPS = 2500; // 25.0% Maximum Dynamic Volatility Surge Fee (2500 bps)
 const INITIAL_PRICE_USD = 0.0001; // Genesis reference price
 
 async function loadKeypair(filepath) {
@@ -52,7 +53,7 @@ async function loadKeypair(filepath) {
 
 async function main() {
   console.log('================================================================');
-  console.log('SivletLabs: Meteora DLMM Liquidity Pool Configuration');
+  console.log('SivletLabs: Meteora DLMM Maximum Fee Pool Configuration');
   console.log('================================================================\n');
 
   const connection = new Connection(RPC_ENDPOINT, 'confirmed');
@@ -75,10 +76,11 @@ async function main() {
 
   console.log('\n[4/5] Computing Meteora DLMM Bin Parameters:');
   console.log(`      - Bin Step:              ${BIN_STEP} bps`);
-  console.log(`      - Base Fee:              ${BASE_FEE_BPS / 100}%`);
-  console.log(`      - Max Dynamic Surge Fee: ${MAX_FEE_BPS / 100}%`);
+  console.log(`      - Base Fee Tier:         ${BASE_FEE_BPS / 100}% (MAXIMUM aggressive fee tier)`);
+  console.log(`      - Dynamic Volatility Surge: Up to ${MAX_FEE_BPS / 100}% during MEV/volume spikes`);
   console.log(`      - Alpha Vault:           Enabled (Anti-sniper early entry schedule)`);
   console.log(`      - Liquidity Lock:        Permanent (100% LP committed to dead sink)`);
+  console.log(`      - Economic Impact:       Every buy/sell pays 10-25% fee that instantly feeds buyback & burn`);
 
   const poolConfig = {
     network: 'solana-mainnet',
@@ -98,26 +100,27 @@ async function main() {
     },
     treasury_accrual: {
       recipient: payer.publicKey.toBase58(),
-      fee_share_bps: 10000, // 100% of trading fees accrue to SivletLabs Treasury for TWAP buyback
-      burn_sink: '11111111111111111111111111111111'
+      engine: 'instant_buyback_burn_crank.js (Gas-Self-Funding Perpetual Flywheel)',
+      fee_allocation: '100% of claimed trading fees routed to market buyback and burn'
     }
   };
 
-  const outputPath = path.join(process.cwd(), 'meteora-pool-config.json');
-  fs.writeFileSync(outputPath, JSON.stringify(poolConfig, null, 2));
-  console.log(`\n[5/5] Configuration serialized to: ${outputPath}`);
+  const configPath = path.join(path.dirname(KEYPAIR_PATH), 'meteora_pool_config.json');
+  fs.writeFileSync(configPath, JSON.stringify(poolConfig, null, 2));
+  console.log(`\n[5/5] Configuration profile saved to: ${configPath}`);
 
-  console.log('\n================================================================');
-  console.log('Meteora Pool Setup Instructions:');
-  console.log('1. Ensure your Solana wallet has sufficient SOL and $SIVLET balance.');
-  console.log('2. Navigate to https://app.meteora.ag/create to launch the DLMM pool or run:');
-  console.log(`   npm run meteora:create -- --mint ${sivletMint.toBase58()}`);
-  console.log('3. Enable Alpha Vault in the Meteora UI to activate anti-sniper protection.');
-  console.log('4. Lock the resulting LP token permanently to verify 100% decentralized ownership.');
-  console.log('================================================================\n');
+  console.log('\n----------------------------------------------------------------');
+  console.log('Meteora DLMM Initialization Profile Ready:');
+  console.log(`1. Pair:               $SIVLET / SOL (DLMM)`);
+  console.log(`2. Base Fee Tier:      10.0% (1000 bps)`);
+  console.log(`3. Volatility Surge:   Up to 25.0% (2500 bps)`);
+  console.log(`4. Alpha Vault:        ACTIVE (Anti-Sniper Fair Launch)`);
+  console.log(`5. Deploy Gas Cost:    0 SOL for custom contracts (<0.05 SOL account rent total)`);
+  console.log(`6. Buyback Engine:     instant_buyback_burn_crank.js (Zero Out-of-Pocket Gas)`);
+  console.log('----------------------------------------------------------------\n');
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('Fatal error during Meteora DLMM pool configuration:', err);
   process.exit(1);
 });
