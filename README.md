@@ -10,12 +10,12 @@
 
 ---
 
-### 🌐 Official Live Token Deployment
+### 🌐 Official Live Contract Deployments
 
-- **Token Name**: SivletLabs
-- **Ticker**: `$SIVLET`
-- **Contract Address**: [`0xb7832ca55ea7f9aa1504657376117b98deb4e2e1`](https://robinhoodchain.blockscout.com/token/0xb7832ca55ea7f9aa1504657376117b98deb4e2e1)
-- **Deployment Transaction**: [`0x6888381f1df994cdc4b9c38eee7b5cafe23d595269255ad92cbc56e5abba91b9`](https://robinhoodchain.blockscout.com/tx/0x6888381f1df994cdc4b9c38eee7b5cafe23d595269255ad92cbc56e5abba91b9)
+- **Token Name**: SivletLabs (`$SIVLET`)
+- **Token Contract Address**: [`0xb7832ca55ea7f9aa1504657376117b98deb4e2e1`](https://robinhoodchain.blockscout.com/token/0xb7832ca55ea7f9aa1504657376117b98deb4e2e1)
+- **Treasury Contract Address (BuybackBurnEngine)**: [`0x6B50f02D2292a28928bCe0F97b654E4DCbC75F8A`](https://robinhoodchain.blockscout.com/address/0x6B50f02D2292a28928bCe0F97b654E4DCbC75F8A)
+- **Token Deployment Transaction**: [`0x6888381f1df994cdc4b9c38eee7b5cafe23d595269255ad92cbc56e5abba91b9`](https://robinhoodchain.blockscout.com/tx/0x6888381f1df994cdc4b9c38eee7b5cafe23d595269255ad92cbc56e5abba91b9)
 - **Launchpad**: [Pons](https://ponsfamily.com/token/0xb7832ca55ea7f9aa1504657376117b98deb4e2e1)
 - **Network**: Robinhood Chain Mainnet (Chain ID: `4663`)
 - **Total Supply**: 1,000,000,000 $SIVLET (18 decimals, fixed)
@@ -89,19 +89,23 @@ If you prefer launching via browser without Warpcast:
 ## 🏛️ Part 2: Contracts in This Repository
 
 ### 1. `BuybackBurnEngine.sol` (Protocol Treasury)
-- **Base USDC Address**: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
-- **Base WETH Address**: `0x4200000000000000000000000000000000000006`
-- **Uniswap v3 SwapRouter02**: `0x2626664c2603336E57B271c5C0b26F421741e481`
+- **Deployed Address (Robinhood Chain)**: [`0x6B50f02D2292a28928bCe0F97b654E4DCbC75F8A`](https://robinhoodchain.blockscout.com/address/0x6B50f02D2292a28928bCe0F97b654E4DCbC75F8A)
+- **Pons Bonding Pool**: `0x5F02BE04d20aB66cf5Ea33ECda25194AECAd5601`
+- **Pons Router**: `0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e`
 - **Permanent Burn Sink**: `0x000000000000000000000000000000000000dEaD`
+- **Dual Payment & Execution Support**:
+  - `receive() external payable`: Accepts native ETH from x402 inference micropayments.
+  - `executeBuybackEth(address targetDEX, bytes callData, uint256 minTokensOut)`: Native ETH buyback executed on Pons bonding pool or any DEX router.
+  - `executeBuybackAndBurn(uint256 minAmountOut)`: ERC-20 (USDC) buyback via Uniswap router.
 - **Key Methods**:
-  - `executeBuybackAndBurn(uint256 minAmountOut)`: Permissionless trigger executing the Uniswap v3 swap, burning 99%, locking 1% for founder, and paying 0.5% keeper bounty.
   - `claimFounderIncentive()`: Allows founder to withdraw accumulated incentive tokens once the $100,000 USD FDV milestone is unlocked.
   - `unlockMarketCapGoal()`: Milestone unlock trigger when 100K FDV condition is verified.
+  - `setSwapRouter(address newRouter)`: Mutable DEX adapter allowing seamless upgrade to Uniswap v4 upon graduation.
   - `setFounderAddress(address newFounder)`: Updates the designated founder payout address (e.g. transfer to multisig or cold wallet).
   - `burnDirect(uint256 amount)`: Burn-on-use utility function for $SIVLET payments.
   - `getFounderIncentiveStatus()`: Returns locked tokens, cumulative accumulated/claimed tokens, and milestone status.
   - `getTreasuryStatus()`: View function returning balance, execution readiness, cooldown, and cumulative metrics.
-  - `configureSivletToken(address token, uint24 fee)`: Configures the deployed Clanker token address.
+  - `configureSivletToken(address token, uint24 fee)`: Configures the deployed token address.
 
 ### 2. `SivletToken.sol` (Reference & Testing Token)
 - Standard ERC-20 implementation with fixed 1,000,000,000 supply, EIP-2612 gasless approvals (`permit`), and burn capabilities.
