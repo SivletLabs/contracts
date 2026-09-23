@@ -8,7 +8,8 @@
     "token:create": "bash ./create_spl_token.sh",
     "meteora:setup": "node ./meteora_dlmm_setup.js",
     "buyback:bot": "node ./jupiter_buyback_bot.js",
-    "crank:instant": "node ./instant_buyback_burn_crank.js"
+    "crank:instant": "node ./instant_buyback_burn_crank.js",
+    "launch:dbc": "node ./meteora_dbc_launch.js"
   },
   "keywords": [
     "solana",
@@ -25,6 +26,7 @@
     "@jup-ag/api": "^6.0.32",
     "@meteora-ag/alpha-vault": "^1.1.8",
     "@meteora-ag/dlmm": "^1.9.8",
+    "@meteora-ag/dynamic-bonding-curve-sdk": "^1.5.12",
     "@solana/spl-token": "^0.4.9",
     "@solana/web3.js": "^1.98.0",
     "bn.js": "^5.2.1",

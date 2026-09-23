@@ -9,6 +9,7 @@ Production deployment, liquidity provisioning, and automated deflation scripts f
 | Script | Purpose | Stack |
 | :--- | :--- | :--- |
 | `create_spl_token.sh` | Mints 1B fixed supply $SIVLET, revokes authorities, attaches Metaplex metadata | Solana CLI, SPL Token CLI, Metaplex |
+| `meteora_dbc_launch.js` | **Meteora Launchpad (DBC)**: Configures 0-capital dynamic bonding curve on `launch.meteora.ag` | `@meteora-ag/dynamic-bonding-curve-sdk` |
 | `meteora_dlmm_setup.js` | Initializes Meteora DLMM pool with **10.0% Maximum Base Fee** and up to **25.0% Dynamic Volatility Surge** | `@meteora-ag/dlmm`, `@solana/web3.js` |
 | `instant_buyback_burn_crank.js` | **Gas-Self-Funding Instant Crank**: Claims fees, auto-reimburses gas, market-buys $SIVLET, and burns | `@jup-ag/api`, `@meteora-ag/dlmm` |
 | `jupiter_buyback_bot.js` | Autonomous TWAP buyback engine routing Treasury USDC into Meteora DLMM | `@jup-ag/api`, `@solana/spl-token` |
@@ -47,6 +48,30 @@ What this does:
 2. Revokes mint authority permanently (0% inflation forever).
 3. Revokes freeze authority permanently (non-custodial).
 4. Binds token metadata to Metaplex Token Metadata V3 program.
+
+---
+
+## 2.5 Launching on Meteora Launchpad (Dynamic Bonding Curve)
+
+Meteora's native launchpad is the **Dynamic Bonding Curve (DBC)** (Program ID: `dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN`).
+
+### Why use Meteora Launchpad?
+- **Zero Initial Capital**: The deployer does not need to provide 50-100 SOL to seed liquidity. Buyers fund the curve dynamically as they purchase.
+- **Fair Launch & Anti-Sniper**: Mathematical curve prevents sniper bots from front-running.
+- **Automatic DAMM V2 Graduation**: Once the graduation threshold (e.g. 85 SOL) is reached, Meteora's decentralized migrator automatically creates the DAMM V2 pool and permanently locks 100% of the LP tokens.
+- **10% Curve Fees to Buyback Engine**: 100% of creator trading fees collected during the curve flow directly to the Sivlet Treasury to trigger instant market buyback and burns.
+
+### Method A: 1-Click Web Launchpad (Recommended)
+1. Go to **[https://launch.meteora.ag](https://launch.meteora.ag)**.
+2. Connect your Phantom or Solflare wallet.
+3. Fill in Token Name (`SivletLabs Token`), Symbol (`SIVLET`), and paste Logo URI (`https://sivletlabs.github.io/assets/logo.png`).
+4. Select Migration Target (`85 SOL`) and Fee Tier (Maximum `10.0%`).
+5. Confirm transaction. The bonding curve is immediately live!
+
+### Method B: Programmatic Launch Script
+```bash
+npm run launch:dbc
+```
 
 ---
 
