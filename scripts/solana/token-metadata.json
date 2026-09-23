@@ -1,0 +1,38 @@
+{
+  "name": "SivletLabs Token",
+  "symbol": "SIVLET",
+  "description": "SivletLabs ($SIVLET) - Production High-throughput System-1 Decision Network and Reinforcement Learning Infrastructure for Autonomous Agents.",
+  "image": "https://sivletlabs.github.io/assets/logo.png",
+  "external_url": "https://sivletlabs.github.io",
+  "properties": {
+    "files": [
+      {
+        "uri": "https://sivletlabs.github.io/assets/logo.png",
+        "type": "image/png"
+      }
+    ],
+    "category": "image"
+  },
+  "attributes": [
+    {
+      "trait_type": "Network",
+      "value": "Solana"
+    },
+    {
+      "trait_type": "Decimals",
+      "value": 9
+    },
+    {
+      "trait_type": "Total Supply",
+      "value": "1,000,000,000"
+    },
+    {
+      "trait_type": "Mint Authority",
+      "value": "Revoked"
+    },
+    {
+      "trait_type": "Freeze Authority",
+      "value": "Revoked"
+    }
+  ]
+}

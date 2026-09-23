@@ -1,0 +1,33 @@
+{
+  "name": "sivlet-solana-tooling",
+  "version": "1.0.0",
+  "description": "Production Solana launch and liquidity management suite for $SIVLET",
+  "type": "module",
+  "main": "meteora_dlmm_setup.js",
+  "scripts": {
+    "token:create": "bash ./create_spl_token.sh",
+    "meteora:setup": "node ./meteora_dlmm_setup.js",
+    "buyback:bot": "node ./jupiter_buyback_bot.js"
+  },
+  "keywords": [
+    "solana",
+    "meteora",
+    "dlmm",
+    "jupiter",
+    "spl-token",
+    "sivlet"
+  ],
+  "author": "SivletLabs Core Engineering",
+  "license": "MIT",
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@jup-ag/api": "^6.0.32",
+    "@meteora-ag/alpha-vault": "^1.1.8",
+    "@meteora-ag/dlmm": "^1.9.8",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.0",
+    "bn.js": "^5.2.1",
+    "bs58": "^6.0.0",
+    "dotenv": "^16.4.7"
+  }
+}
