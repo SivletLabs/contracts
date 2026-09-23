@@ -12,8 +12,8 @@ async function main() {
   const BASE_WETH = process.env.BASE_WETH || "0x4200000000000000000000000000000000000006";
   const BASE_UNISWAP_V3_ROUTER = process.env.BASE_SWAP_ROUTER || "0x2626664c2603336E57B271c5C0b26F421741e481";
   
-  // SIVLET token (if already launched via Clanker, pass SIVLET_TOKEN env, else address(0) to configure later)
-  const SIVLET_TOKEN = process.env.SIVLET_TOKEN || hre.ethers.ZeroAddress;
+  // Official $SIVLET deployed on Pons (Robinhood Chain) / configurable via env
+  const SIVLET_TOKEN = process.env.SIVLET_TOKEN || "0xb7832ca55ea7f9aa1504657376117b98deb4e2e1";
   const MIN_TRIGGER_USDC = hre.ethers.parseUnits(process.env.MIN_TRIGGER_USDC || "50", 6); // 50 USDC default
 
   console.log(`Config:`);
@@ -41,13 +41,12 @@ async function main() {
   console.log("-------------------------------------------------");
   console.log("\nNext Steps:");
   if (SIVLET_TOKEN === hre.ethers.ZeroAddress) {
-    console.log("1. Launch $SIVLET on Warpcast via @clanker");
-    console.log(`2. Call configureSivletToken(TOKEN_ADDRESS, 10000) on ${treasuryAddress}`);
+    console.log("1. Token not set, call configureSivletToken(TOKEN_ADDRESS, fee) on treasury");
   } else {
-    console.log("1. $SIVLET route is already configured for Uniswap v3 pool!");
+    console.log(`1. Official $SIVLET token bound: ${SIVLET_TOKEN}`);
   }
-  console.log(`3. Update Cloudflare Worker TREASURY_ADDRESS to: ${treasuryAddress}`);
-  console.log(`4. Verify on Basescan: npx hardhat verify --network base ${treasuryAddress} "${BASE_USDC}" "${BASE_WETH}" "${BASE_UNISWAP_V3_ROUTER}" "${SIVLET_TOKEN}" "${MIN_TRIGGER_USDC}"`);
+  console.log(`2. Update Cloudflare Worker TREASURY_ADDRESS to: ${treasuryAddress}`);
+  console.log(`3. Verify on Blockscout / Explorer: npx hardhat verify --network <network> ${treasuryAddress} "${BASE_USDC}" "${BASE_WETH}" "${BASE_UNISWAP_V3_ROUTER}" "${SIVLET_TOKEN}" "${MIN_TRIGGER_USDC}"`);
 }
 
 main().catch((error) => {

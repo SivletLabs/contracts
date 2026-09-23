@@ -1,12 +1,25 @@
 # ⚡ SivletLabs Smart Contracts
 
-> **Production Smart Contracts for SivletLabs System-1 Decision Network on Base L2**  
-> Fair token launch on Base via **Clanker**, permissionless Uniswap v3 buyback-and-burn engine, and decentralized keeper incentives.
+> **Production Smart Contracts for SivletLabs System-1 Decision Network**  
+> Official `$SIVLET` fair launch on **Robinhood Chain** via **Pons**, permissionless buyback-and-burn engine, and decentralized keeper incentives.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Network: Base](https://img.shields.io/badge/Network-Base_L2-0052FF.svg)](https://base.org)
+[![Network: Robinhood Chain](https://img.shields.io/badge/Network-Robinhood_Chain_(4663)-00C805.svg)](https://robinhoodchain.blockscout.com)
+[![Token: SIVLET](https://img.shields.io/badge/Token-0xb783...e2e1-00FF66.svg)](https://robinhoodchain.blockscout.com/token/0xb7832ca55ea7f9aa1504657376117b98deb4e2e1)
 [![Solidity: 0.8.24](https://img.shields.io/badge/Solidity-0.8.24-363636.svg)](https://soliditylang.org/)
-[![DEX: Uniswap v3](https://img.shields.io/badge/DEX-Uniswap_v3-FF007A.svg)](https://uniswap.org)
+
+---
+
+### 🌐 Official Live Token Deployment
+
+- **Token Name**: SivletLabs
+- **Ticker**: `$SIVLET`
+- **Contract Address**: [`0xb7832ca55ea7f9aa1504657376117b98deb4e2e1`](https://robinhoodchain.blockscout.com/token/0xb7832ca55ea7f9aa1504657376117b98deb4e2e1)
+- **Deployment Transaction**: [`0x6888381f1df994cdc4b9c38eee7b5cafe23d595269255ad92cbc56e5abba91b9`](https://robinhoodchain.blockscout.com/tx/0x6888381f1df994cdc4b9c38eee7b5cafe23d595269255ad92cbc56e5abba91b9)
+- **Launchpad**: [Pons](https://ponsfamily.com/token/0xb7832ca55ea7f9aa1504657376117b98deb4e2e1)
+- **Network**: Robinhood Chain Mainnet (Chain ID: `4663`)
+- **Total Supply**: 1,000,000,000 $SIVLET (18 decimals, fixed)
+
 
 ---
 
