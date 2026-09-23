@@ -54,7 +54,7 @@ describe("BuybackBurnEngine Treasury Unit Tests (Startup Monthly Cliff Model)", 
       .to.be.revertedWith("Insufficient treasury balance");
   });
 
-  it("should execute buyback, split 99% burn and 1% locked founder incentive, and pay keeper bounty", async function () {
+  it("should execute buyback, split 90% burn and 10% locked founder incentive, and pay keeper bounty", async function () {
     const depositAmount = hre.ethers.parseUnits("100", 6); // 100 USDC
     await usdc.mint(await treasury.getAddress(), depositAmount);
 
@@ -72,14 +72,14 @@ describe("BuybackBurnEngine Treasury Unit Tests (Startup Monthly Cliff Model)", 
     // Mock router multiplier = 20,000 tokens per USDC
     // Swap amount = 99.5 USDC -> 99.5 * 20,000 = 1,990,000 SIVLET (18 decimals)
     const totalBought = hre.ethers.parseEther("1990000");
-    const expectedIncentive = (totalBought * 100n) / 10000n; // 1% = 19,900 SIVLET
-    const expectedBurned = totalBought - expectedIncentive;   // 99% = 1,970,100 SIVLET
+    const expectedIncentive = (totalBought * 1000n) / 10000n; // 10% = 199,000 SIVLET
+    const expectedBurned = totalBought - expectedIncentive;   // 90% = 1,791,000 SIVLET
 
-    // Check that 99% burned to DEAD_ADDRESS
+    // Check that 90% burned to DEAD_ADDRESS
     const deadBalance = await sivlet.balanceOf(DEAD_ADDRESS);
     expect(deadBalance).to.equal(expectedBurned);
 
-    // Check that 1% retained in treasury
+    // Check that 10% retained in treasury
     const totalAccumulated = await treasury.totalFounderIncentiveAccumulated();
     expect(totalAccumulated).to.equal(expectedIncentive);
 
@@ -119,9 +119,9 @@ describe("BuybackBurnEngine Treasury Unit Tests (Startup Monthly Cliff Model)", 
     expect(await treasury.cliffActivationTimestamp()).to.be.gt(0);
 
     // Total bought = 99.5 * 5000 = 497,500 SIVLET
-    // 1% Founder incentive = 4,975 SIVLET
+    // 10% Founder incentive = 49,750 SIVLET
     const totalAccumulated = await treasury.totalFounderIncentiveAccumulated();
-    expect(totalAccumulated).to.equal(hre.ethers.parseEther("4975"));
+    expect(totalAccumulated).to.equal(hre.ethers.parseEther("49750"));
 
     // In Month 0 (immediate on reaching 100K cliff), 1/12 vests immediately!
     const expectedMonth1Vested = totalAccumulated / 12n;

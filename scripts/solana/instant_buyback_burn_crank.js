@@ -1,7 +1,7 @@
 /**
  * SivletLabs: Instant High-Frequency Buyback & Burn Crank Bot
  * 
- * Mechanism: Gas-Self-Funding Perpetual Flywheel
+ * Mechanism: Gas-Self-Funding Perpetual Flywheel with Creator Cash Flow
  * 
  * Architecture:
  *   1. Monitors Meteora DLMM concentrated liquidity pool fees in real time.
@@ -9,8 +9,8 @@
  *   3. Zero Out-of-Pocket Gas:
  *      - Each execution claims accumulated trading fees (SOL and USDC).
  *      - Automatically withholds a tiny fraction (0.00005 SOL, ~$0.007) to self-replenish transaction gas.
- *      - The remaining 99.99% of fees are immediately used to market-buy $SIVLET via Jupiter.
- *      - Acquired $SIVLET is permanently burned immediately to '11111111111111111111111111111111'.
+ *      - 10% Creator Profit Cash Flow: Deposited directly into Creator Wallet in pure SOL/USDC.
+ *      - 90% Autonomous Buyback & Burn: Market-buys $SIVLET via Jupiter and permanently burns to '11111111111111111111111111111111'.
  *   4. Deployer Gas Requirement: 0 ongoing SOL. The crank funds its own execution from trading volume!
  * 
  * Network: Solana Mainnet Beta
@@ -20,6 +20,9 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  SystemProgram,
+  Transaction,
+  sendAndConfirmTransaction,
   VersionedTransaction,
   LAMPORTS_PER_SOL
 } from '@solana/web3.js';
@@ -40,10 +43,15 @@ const RPC_ENDPOINT = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.sol
 const KEYPAIR_PATH = process.env.SOLANA_KEYPAIR_PATH || path.join(process.env.HOME || '', '.config/solana/id.json');
 const SIVLET_MINT_STR = process.env.SIVLET_TOKEN_MINT || 'Siv1et1111111111111111111111111111111111111';
 const METEORA_POOL_STR = process.env.METEORA_POOL_ADDRESS || '8HoQnePLqPj4M7PUDzHy81Q52234nd8J3W0000000000';
+const CREATOR_PROFIT_WALLET_STR = process.env.CREATOR_PROFIT_WALLET || ''; // Defaults to payer if unset
+
+// Distribution Split Ratios (10% Creator Profit Cash Flow, 90% Buyback & Burn)
+const CREATOR_PROFIT_SHARE = 0.10; // 10%
+const BUYBACK_BURN_SHARE = 0.90;   // 90%
 
 // Trigger Thresholds (Instant / Low-latency)
-const MIN_SOL_THRESHOLD = parseFloat(process.env.MIN_SOL_TRIGGER || '0.01'); // 0.01 SOL (~$1.50) triggers immediate buy
-const MIN_USDC_THRESHOLD = parseFloat(process.env.MIN_USDC_TRIGGER || '1.0'); // 1.0 USDC triggers immediate buy
+const MIN_SOL_THRESHOLD = parseFloat(process.env.MIN_SOL_TRIGGER || '0.01'); // 0.01 SOL (~$1.50) triggers immediate distribution
+const MIN_USDC_THRESHOLD = parseFloat(process.env.MIN_USDC_TRIGGER || '1.0'); // 1.0 USDC triggers immediate distribution
 const GAS_SELF_REIMBURSE_LAMPORTS = 50_000; // 0.00005 SOL withheld to ensure perpetual self-gas
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '15000', 10); // 15 seconds
 
@@ -117,30 +125,59 @@ async function runCrankCycle(connection, payer) {
     console.log(`[DLMM Telemetry] Active pool monitoring: ${METEORA_POOL_STR}`);
   }
 
-  // Check if wallet balance exceeds threshold to execute buyback
+  // Check if wallet balance exceeds threshold to execute distribution
   const spendableSolLamports = Math.max(0, payerBalance - (0.01 * LAMPORTS_PER_SOL)); // Preserve baseline safety cushion
 
   if (spendableSolLamports > (MIN_SOL_THRESHOLD * LAMPORTS_PER_SOL)) {
     // Withhold tiny gas fee to maintain perpetual operation
-    const netSolToSpendLamports = spendableSolLamports - GAS_SELF_REIMBURSE_LAMPORTS;
-    const solSpendAmount = (netSolToSpendLamports / LAMPORTS_PER_SOL).toFixed(4);
+    const netSolToDistribute = spendableSolLamports - GAS_SELF_REIMBURSE_LAMPORTS;
+    const creatorProfitLamports = Math.floor(netSolToDistribute * CREATOR_PROFIT_SHARE);
+    const buybackLamports = netSolToDistribute - creatorProfitLamports;
 
-    console.log(`[Action] Triggering Instant Buyback: Spending ${solSpendAmount} SOL -> $SIVLET`);
-    console.log(`         Self-retained Gas: ${GAS_SELF_REIMBURSE_LAMPORTS / LAMPORTS_PER_SOL} SOL (0 out-of-pocket deployer cost)`);
+    const profitSolAmount = (creatorProfitLamports / LAMPORTS_PER_SOL).toFixed(6);
+    const buybackSolAmount = (buybackLamports / LAMPORTS_PER_SOL).toFixed(6);
 
+    console.log(`[Action] Triggering Automated Distribution Cycle:`);
+    console.log(`         Total Net Distribution: ${(netSolToDistribute / LAMPORTS_PER_SOL).toFixed(6)} SOL`);
+    console.log(`         Gas Self-Funded:        ${GAS_SELF_REIMBURSE_LAMPORTS / LAMPORTS_PER_SOL} SOL (0 out-of-pocket deployer cost)`);
+    console.log(`         1. Creator Profit Share (10%): ${profitSolAmount} SOL`);
+    console.log(`         2. Buyback & Burn Share (90%): ${buybackSolAmount} SOL`);
+
+    // Step 1: Send 10% Creator Profit directly to Creator's Wallet
+    const creatorPubkey = CREATOR_PROFIT_WALLET_STR ? new PublicKey(CREATOR_PROFIT_WALLET_STR) : payer.publicKey;
+    if (creatorPubkey.toBase58() !== payer.publicKey.toBase58() && creatorProfitLamports > 5000) {
+      try {
+        const transferTx = new Transaction().add(
+          SystemProgram.transfer({
+            fromPubkey: payer.publicKey,
+            toPubkey: creatorPubkey,
+            lamports: creatorProfitLamports
+          })
+        );
+        const profitTxid = await sendAndConfirmTransaction(connection, transferTx, [payer]);
+        console.log(`[Creator Profit] Transferred ${profitSolAmount} SOL to Creator Wallet: ${creatorPubkey.toBase58()}`);
+        console.log(`                 Tx: https://solscan.io/tx/${profitTxid}`);
+      } catch (profitErr) {
+        console.warn(`[Creator Profit Error] Failed to send creator profit: ${profitErr.message}`);
+      }
+    } else {
+      console.log(`[Creator Profit] 10% cash profit (${profitSolAmount} SOL) retained in deployer/creator wallet: ${creatorPubkey.toBase58()}`);
+    }
+
+    // Step 2: Route 90% via Jupiter to market-buy $SIVLET and permanently burn
     try {
       const quote = await getJupiterSwapQuote(
         NATIVE_SOL_MINT,
         SIVLET_MINT_STR,
-        netSolToSpendLamports
+        buybackLamports
       );
 
-      console.log(`[Quote] In: ${solSpendAmount} SOL -> Expected Out: ${quote.outAmount} $SIVLET`);
-      console.log(`        Routing through Meteora DLMM 10% fee pool`);
+      console.log(`[Buyback Quote] In: ${buybackSolAmount} SOL -> Expected Out: ${quote.outAmount} $SIVLET`);
+      console.log(`                Routing through Meteora DLMM concentrated bins`);
 
       const txid = await executeJupiterSwap(connection, payer, quote);
       console.log(`[Success] Buyback executed! Tx Hash: https://solscan.io/tx/${txid}`);
-      console.log(`[Burn] 100% of acquired $SIVLET sent to burn sink: ${BURN_SINK.toBase58()}`);
+      console.log(`[Burn] Acquired $SIVLET burned permanently to ${BURN_SINK.toBase58()}`);
     } catch (swapErr) {
       console.warn(`[Notice] Swap skipped: ${swapErr.message}`);
     }
@@ -159,7 +196,8 @@ async function main() {
   console.log(`4. Trigger Threshold:  ${MIN_SOL_THRESHOLD} SOL / ${MIN_USDC_THRESHOLD} USDC`);
   console.log(`5. Gas Self-Funding:   ACTIVE (0.00005 SOL auto-withheld per cycle)`);
   console.log(`6. Out-of-Pocket Gas:  0 SOL required from deployer`);
-  console.log(`7. Permanent Burn:     100% tokens burned to ${BURN_SINK.toBase58()}`);
+  console.log(`7. Split Ratio:        10% Creator Profit Cash Flow / 90% Buyback & Burn`);
+  console.log(`8. Permanent Burn:     Burned to ${BURN_SINK.toBase58()}`);
   console.log('================================================================\n');
 
   const connection = new Connection(RPC_ENDPOINT, 'confirmed');

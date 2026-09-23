@@ -22,6 +22,8 @@ import {
 } from '@solana/web3.js';
 import {
   createBurnInstruction,
+  createTransferInstruction,
+  createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddress,
   getAccount,
   TOKEN_PROGRAM_ID
@@ -42,7 +44,10 @@ const JUPITER_SWAP_API = 'https://quote-api.jup.ag/v6/swap';
 const RPC_ENDPOINT = process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 const KEYPAIR_PATH = process.env.SOLANA_KEYPAIR_PATH || path.join(process.env.HOME || '', '.config/solana/id.json');
 const SIVLET_MINT_STR = process.env.SIVLET_TOKEN_MINT || 'S1VLET1111111111111111111111111111111111111';
-const MIN_BUYBACK_USDC = parseFloat(process.env.MIN_BUYBACK_USDC || '50.0'); // Minimum 50 USDC to trigger swap
+const CREATOR_PROFIT_WALLET_STR = process.env.CREATOR_PROFIT_WALLET || '';
+const CREATOR_PROFIT_SHARE = 0.10; // 10% Creator Profit Cash Flow
+const BUYBACK_BURN_SHARE = 0.90;   // 90% Buyback and Permanent Burn
+const MIN_BUYBACK_USDC = parseFloat(process.env.MIN_BUYBACK_USDC || '50.0'); // Minimum 50 USDC to trigger distribution
 const SLIPPAGE_BPS = parseInt(process.env.SLIPPAGE_BPS || '100', 10); // 1.0% max slippage
 
 async function loadKeypair(filepath) {
@@ -66,6 +71,7 @@ async function getTreasuryUsdcBalance(connection, treasuryPubkey) {
 async function executeBuybackAndBurn() {
   console.log('================================================================');
   console.log('SivletLabs: Autonomous Jupiter TWAP Buyback & Burn Bot');
+  console.log('Distribution: 10% Creator Profit Cash Flow / 90% Buyback & Burn');
   console.log('================================================================\n');
 
   const connection = new Connection(RPC_ENDPOINT, 'confirmed');
@@ -90,10 +96,47 @@ async function executeBuybackAndBurn() {
     return;
   }
 
-  console.log(`\n[ACTION] Triggering buyback on Meteora DLMM via Jupiter routing for $${usdcBalance.toFixed(2)} USDC...`);
+  const creatorProfitUsdc = usdcBalance * CREATOR_PROFIT_SHARE;
+  const buybackUsdc = usdcBalance * BUYBACK_BURN_SHARE;
 
-  // Step 1: Query Jupiter Quote API
-  const amountUnits = Math.floor(usdcBalance * 1e6);
+  console.log(`\n[DISTRIBUTION] Executing Protocol Revenue Allocation:`);
+  console.log(`               Total Available:                 $${usdcBalance.toFixed(2)} USDC`);
+  console.log(`               1. Creator Profit Share (10%):   $${creatorProfitUsdc.toFixed(2)} USDC`);
+  console.log(`               2. Buyback & Burn Share (90%):   $${buybackUsdc.toFixed(2)} USDC`);
+
+  // Step 1: Send 10% Creator Profit Cash Flow to Creator Wallet
+  const creatorPubkey = CREATOR_PROFIT_WALLET_STR ? new PublicKey(CREATOR_PROFIT_WALLET_STR) : treasuryKeypair.publicKey;
+  if (creatorPubkey.toBase58() !== treasuryKeypair.publicKey.toBase58() && creatorProfitUsdc >= 0.01) {
+    try {
+      const sourceAta = await getAssociatedTokenAddress(SPL_USDC_MINT, treasuryKeypair.publicKey);
+      const destAta = await getAssociatedTokenAddress(SPL_USDC_MINT, creatorPubkey);
+      const profitTx = new Transaction().add(
+        createAssociatedTokenAccountIdempotentInstruction(
+          treasuryKeypair.publicKey,
+          destAta,
+          creatorPubkey,
+          SPL_USDC_MINT
+        ),
+        createTransferInstruction(
+          sourceAta,
+          destAta,
+          treasuryKeypair.publicKey,
+          BigInt(Math.floor(creatorProfitUsdc * 1e6))
+        )
+      );
+      const profitSig = await sendAndConfirmTransaction(connection, profitTx, [treasuryKeypair]);
+      console.log(`[CREATOR PROFIT] Sent $${creatorProfitUsdc.toFixed(2)} USDC to ${creatorPubkey.toBase58()}: https://solscan.io/tx/${profitSig}`);
+    } catch (profitErr) {
+      console.warn(`[CREATOR PROFIT] Transfer notice: ${profitErr.message}`);
+    }
+  } else {
+    console.log(`[CREATOR PROFIT] 10% cash profit ($${creatorProfitUsdc.toFixed(2)} USDC) retained in treasury/creator wallet: ${creatorPubkey.toBase58()}`);
+  }
+
+  console.log(`\n[ACTION] Triggering 90% buyback on Meteora DLMM via Jupiter routing for $${buybackUsdc.toFixed(2)} USDC...`);
+
+  // Step 2: Query Jupiter Quote API for 90% buyback amount
+  const amountUnits = Math.floor(buybackUsdc * 1e6);
   const quoteUrl = `${JUPITER_QUOTE_API}?inputMint=${SPL_USDC_MINT.toBase58()}&outputMint=${sivletMint.toBase58()}&amount=${amountUnits}&slippageBps=${SLIPPAGE_BPS}&dexes=Meteora,Meteora%20DLMM`;
   
   console.log(`[JUPITER] Requesting quote: USDC -> SIVLET on Meteora DLMM...`);
@@ -103,7 +146,7 @@ async function executeBuybackAndBurn() {
   }
   const quoteData = await quoteRes.json();
   const outAmountTokens = Number(quoteData.outAmount) / 1e9;
-  console.log(`[JUPITER] Quote received: In: $${usdcBalance} USDC -> Estimated Out: ${outAmountTokens.toLocaleString()} SIVLET`);
+  console.log(`[JUPITER] Quote received: In: $${buybackUsdc.toFixed(2)} USDC -> Estimated Out: ${outAmountTokens.toLocaleString()} SIVLET`);
 
   // Step 2: Request serialized swap transaction from Jupiter
   const swapRes = await fetch(JUPITER_SWAP_API, {

@@ -50,8 +50,8 @@ interface ISwapRouter {
  * Manifesto: "The Sivlet Team Works for the Treasury"
  *  - Zero pre-mined team dumps. The team is employed by the autonomous protocol treasury.
  *  - 100% of x402 API revenue streams into the treasury contract.
- *  - 99% of every buyback is permanently burned to 0x000...dEaD.
- *  - 1% of every buyback is allocated to the Founder / Team Equity Incentive Pool.
+ *  - 90% of every buyback is permanently burned to 0x000...dEaD.
+ *  - 10% of every buyback is allocated to the Founder / Team Equity Incentive Pool.
  *  - Startup-Style Perpetual Cliff Vesting Model:
  *      1. Master Milestone Cliff ($100K FDV): 100% locked until market cap reaches $100,000 USD.
  *      2. Monthly Cliff Cycles: Passing $100K activates the vesting clock (30-day epoch cliffs).
@@ -100,8 +100,8 @@ contract BuybackBurnEngine {
     uint256 public constant CALLER_BOUNTY_BPS = 50; 
     uint256 public constant BPS_DENOMINATOR = 10000;
 
-    // Founder Equity Incentive: 1% (100 bps) of tokens bought during buybacks
-    uint256 public constant FOUNDER_INCENTIVE_BPS = 100;
+    // Founder Equity Incentive: 10% (1000 bps) of tokens bought during buybacks
+    uint256 public constant FOUNDER_INCENTIVE_BPS = 1000;
 
     // Master Milestone Unlock: $100,000 USD Market Cap (in USDC 6 decimals)
     uint256 public targetMarketCap = 100_000 * 1e6;
@@ -285,7 +285,7 @@ contract BuybackBurnEngine {
         tokensBought = swapRouter.exactInput(params);
         require(tokensBought > 0, "Zero tokens bought");
 
-        // 4. Distribute: 1% Founder Equity Incentive locked, 99% burned to DEAD_ADDRESS
+        // 4. Distribute: 10% Founder Equity Incentive locked, 90% burned to DEAD_ADDRESS
         _distributeBoughtTokens(tokensBought, swapAmount);
 
         // 5. Update cumulative USDC statistics
@@ -337,7 +337,7 @@ contract BuybackBurnEngine {
         tokensBought = balanceAfter - balanceBefore;
         require(tokensBought >= minTokensOut, "Slippage limit exceeded");
 
-        // 5. Distribute: 99% burn, 1% founder lock
+        // 5. Distribute: 90% burn, 10% founder lock
         _distributeBoughtTokens(tokensBought, swapAmount);
 
         // 6. Update cumulative statistics

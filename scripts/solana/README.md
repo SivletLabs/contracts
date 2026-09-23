@@ -109,7 +109,9 @@ Crank Claims Trading Fee
       ├─► Withholds 0.00005 SOL (~$0.007) to replenish its own transaction gas!
       │    └─► Deployer pays ZERO out-of-pocket gas on an ongoing basis!
       │
-      └─► 99.999% of fees immediately market-buy $SIVLET via Jupiter routing
+      ├─► 10% Creator Profit Cash Flow: Deposited directly into Creator Wallet in pure SOL/USDC!
+      │
+      └─► 90% Autonomous Buyback & Burn: Market-buys $SIVLET via Jupiter routing
            └─► 100% of acquired $SIVLET is burned to 11111111111111111111111111111111!
 ```
 
